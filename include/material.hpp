@@ -12,7 +12,7 @@
 class Material {
 public:
 
-    explicit Material(const Vector3f &d_color, const Vector3f &s_color = Vector3f::ZERO, float s = 0,float refl = 0, float refr = 0, float refr_index = 1.0f,const Vector3f &ambient = Vector3f(0.3, 0.3, 0.3)) :
+    explicit Material(const Vector3f &d_color, const Vector3f &s_color = Vector3f::ZERO, float s = 0,float refl = 0, float refr = 0, float refr_index = 1.0f,const Vector3f &ambient = Vector3f(0.4, 0.4, 0.4)) :
             diffuseColor(d_color), specularColor(s_color), shininess(s),reflectivity(refl), refractivity(refr), refractiveIndex(refr_index),ambientColor(ambient) {
 
     }
