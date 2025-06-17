@@ -9,6 +9,7 @@ public:
     Light() = default;
 
     virtual ~Light() = default;
+    virtual Vector3f getPosition() const = 0;
 
     virtual void getIllumination(const Vector3f &p, Vector3f &dir, Vector3f &col) const = 0;
 };
@@ -24,6 +25,11 @@ public:
     }
 
     ~DirectionalLight() override = default;
+
+    Vector3f getPosition() const override {
+        // 方向光没有具体位置，返回一个远点
+        return Vector3f(1e10, 1e10, 1e10) * direction;
+    }
 
     ///@param p unsed in this function
     ///@param distanceToLight not well defined because it's not a point light
@@ -51,6 +57,10 @@ public:
     }
 
     ~PointLight() override = default;
+
+    Vector3f getPosition() const override {
+        return position;
+    }
 
     void getIllumination(const Vector3f &p, Vector3f &dir, Vector3f &col) const override {
         // the direction to the light is the opposite of the

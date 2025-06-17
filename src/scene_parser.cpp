@@ -241,6 +241,9 @@ Material *SceneParser::parseMaterial() {
     filename[0] = 0;
     Vector3f diffuseColor(1, 1, 1), specularColor(0, 0, 0);
     float shininess = 0;
+    float reflectivity = 0;
+    float refractivity = 0;
+    float refractiveIndex = 1.0f;
     getToken(token);
     assert (!strcmp(token, "{"));
     while (true) {
@@ -251,6 +254,12 @@ Material *SceneParser::parseMaterial() {
             specularColor = readVector3f();
         } else if (strcmp(token, "shininess") == 0) {
             shininess = readFloat();
+        } else if (strcmp(token, "reflectivity") == 0) {
+            reflectivity = readFloat();
+        } else if (strcmp(token, "refractivity") == 0) {
+            refractivity = readFloat();
+        } else if (strcmp(token, "refractiveIndex") == 0) {
+            refractiveIndex = readFloat();
         } else if (strcmp(token, "texture") == 0) {
             // Optional: read in texture and draw it.
             getToken(filename);
@@ -259,7 +268,7 @@ Material *SceneParser::parseMaterial() {
             break;
         }
     }
-    auto *answer = new Material(diffuseColor, specularColor, shininess);
+    auto *answer = new Material(diffuseColor, specularColor, shininess,reflectivity, refractivity, refractiveIndex);
     return answer;
 }
 
