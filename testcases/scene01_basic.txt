@@ -34,11 +34,11 @@ Materials {
     refractivity 1.0
     refractiveIndex 1.5}
     Material { diffuseColor 0 0 1 }
-    Material { diffuseColor 1 1 0.8 }
-    Material { diffuseColor 1 0 0 }
-    Material { diffuseColor 0 1 0 }
-    Material { diffuseColor 1 1 0 }
-    Material { diffuseColor 0.1 0.1 0.7 }
+    Material { diffuseColor 0.75 0.25 0.25 }
+    Material { diffuseColor 0 0 0 }
+    Material { diffuseColor 0.25 0.25 0.75 }
+    Material { diffuseColor 0.75 0.75 0.25 }
+    Material { diffuseColor 0.75 0.25 0.75 }
 }
 
 Group {

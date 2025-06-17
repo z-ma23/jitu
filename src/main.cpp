@@ -54,6 +54,8 @@ Vector3f traceRay(const Ray &ray, const SceneParser &scene, int depth, float tmi
         Material *material = hit.getMaterial();
         Vector3f hitPoint = ray.pointAtParameter(hit.getT());
         Vector3f normal = hit.getNormal();
+
+        Vector3f finalColor = material->getAmbientColor() * material->getDiffuseColor();
         
         // 处理反射材质
         if (material->isReflective()) {
@@ -77,7 +79,6 @@ Vector3f traceRay(const Ray &ray, const SceneParser &scene, int depth, float tmi
         }
         
         // 漫反射材质 - 添加阴影检测
-        Vector3f finalColor = Vector3f::ZERO;
         for (int li = 0; li < scene.getNumLights(); ++li) {
             Light* light = scene.getLight(li);
             Vector3f L, lightColor;
