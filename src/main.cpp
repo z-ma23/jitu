@@ -67,9 +67,43 @@ Vector3f traceRay(const Ray &ray, const SceneParser &scene, int depth) {
     }
 
     if (type == DIFF) {
-        Vector3f dir = cosineSampleHemisphere(normal); // 随机采样半球方向
+        Vector3f directLighting(0);
+
+        for (int i = 0; i < scene.getNumLights(); ++i) {
+            Light *light = scene.getLight(i);
+            Vector3f lightPos, lightDir, lightNormal, Le;
+            float pdf = 1.0f;
+            float distanceToLight = 1e30;
+
+            if (light->isAreaLight()) {
+                Le = light->samplePoint(lightPos, lightNormal, pdf);
+                lightDir = (lightPos - hitPoint);
+                distanceToLight = lightDir.length();
+                lightDir = lightDir.normalized();
+            } else {
+                light->getIllumination(hitPoint, lightDir, Le);
+                lightDir.normalize();
+            }
+
+            Ray shadowRay(hitPoint + lightDir * 1e-4f, lightDir);
+            Hit shadowHit;
+            if (!scene.getGroup()->intersect(shadowRay, shadowHit, 1e-4f)
+                || shadowHit.getT() > distanceToLight - 1e-3f) {
+
+                float cos_theta = std::max(0.0f, Vector3f::dot(normal, lightDir));
+                float cos_light = light->isAreaLight() ? std::max(0.0f, Vector3f::dot(-lightDir, lightNormal)) : 1.0f;
+                float geom_term = cos_theta * cos_light / (light->isAreaLight() ? (distanceToLight * distanceToLight) : 1.0f);
+                Vector3f brdf = color / M_PI;
+
+                directLighting += Le * brdf * geom_term / pdf;
+            }
+        }
+
+        Vector3f dir = cosineSampleHemisphere(normal);
         Ray newRay(hitPoint + dir * 1e-4f, dir);
-        return emission + color * traceRay(newRay, scene, depth + 1);
+        Vector3f indirect = color * traceRay(newRay, scene, depth + 1);
+
+        return emission + directLighting + indirect;
     }else if (type == SPEC) {
         Vector3f dir = reflect(ray.getDirection(), normal).normalized();
         Ray newRay(hitPoint + dir * 1e-4f, dir);
