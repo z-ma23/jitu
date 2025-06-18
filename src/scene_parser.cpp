@@ -166,6 +166,8 @@ void SceneParser::parseLights() {
             lights[count] = parseDirectionalLight();
         } else if (strcmp(token, "PointLight") == 0) {
             lights[count] = parsePointLight();
+        }else if (strcmp(token, "AreaLight") == 0) {
+            lights[count] = parseAreaLight();
         } else {
             printf("Unknown token in parseLight: '%s'\n", token);
             exit(0);
@@ -205,6 +207,31 @@ Light *SceneParser::parsePointLight() {
     assert (!strcmp(token, "}"));
     return new PointLight(position, color);
 }
+
+Light *SceneParser::parseAreaLight() {
+    char token[MAX_PARSER_TOKEN_LENGTH];
+    getToken(token); assert(!strcmp(token, "{"));
+    Vector3f pos, u, v, color;
+    while (true) {
+        getToken(token);
+        if (strcmp(token, "position") == 0) {
+            pos = readVector3f();
+        } else if (strcmp(token, "uvec") == 0) {
+            u = readVector3f();
+        } else if (strcmp(token, "vvec") == 0) {
+            v = readVector3f();
+        } else if (strcmp(token, "color") == 0) {
+            color = readVector3f();
+        } else if (strcmp(token, "}") == 0) {
+            break;
+        } else {
+            printf("Unknown token in AreaLight: %s\n", token);
+            exit(1);
+        }
+    }
+    return new AreaLight(pos, u, v, color);
+}
+
 // ====================================================================
 // ====================================================================
 
@@ -239,11 +266,13 @@ Material *SceneParser::parseMaterial() {
     char token[MAX_PARSER_TOKEN_LENGTH];
     char filename[MAX_PARSER_TOKEN_LENGTH];
     filename[0] = 0;
-    Vector3f diffuseColor(1, 1, 1), specularColor(0, 0, 0);
+    char tp[4];
+    Vector3f diffuseColor(1, 1, 1), specularColor(0, 0, 0),emissionColor(0,0,0);
     float shininess = 0;
     float reflectivity = 0;
     float refractivity = 0;
     float refractiveIndex = 1.0f;
+    MaterialType type = DIFF;
     getToken(token);
     assert (!strcmp(token, "{"));
     while (true) {
@@ -252,6 +281,8 @@ Material *SceneParser::parseMaterial() {
             diffuseColor = readVector3f();
         } else if (strcmp(token, "specularColor") == 0) {
             specularColor = readVector3f();
+        }else if (strcmp(token, "emissionColor") == 0) {
+            emissionColor = readVector3f();
         } else if (strcmp(token, "shininess") == 0) {
             shininess = readFloat();
         } else if (strcmp(token, "reflectivity") == 0) {
@@ -260,6 +291,17 @@ Material *SceneParser::parseMaterial() {
             refractivity = readFloat();
         } else if (strcmp(token, "refractiveIndex") == 0) {
             refractiveIndex = readFloat();
+        } else if (strcmp(token, "type") == 0) {
+            getToken(tp);
+            if(strcmp(tp, "DIFF") == 0){
+                type = DIFF;
+            }else if(strcmp(tp, "SPEC") == 0){
+                type = SPEC;
+            }else if (strcmp(tp, "REFR") == 0){
+                type = REFR;
+            }else if (strcmp(tp, "METAL") == 0){
+                type = METAL;
+            }
         } else if (strcmp(token, "texture") == 0) {
             // Optional: read in texture and draw it.
             getToken(filename);
@@ -268,7 +310,7 @@ Material *SceneParser::parseMaterial() {
             break;
         }
     }
-    auto *answer = new Material(diffuseColor, specularColor, shininess,reflectivity, refractivity, refractiveIndex);
+    auto *answer = new Material(diffuseColor, emissionColor,specularColor, shininess,reflectivity, refractivity, refractiveIndex,type);
     return answer;
 }
 

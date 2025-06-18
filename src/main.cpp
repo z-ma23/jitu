@@ -4,98 +4,125 @@
 #include <cstring>
 #include <cmath>
 #include <iostream>
+#include <ctime>
 
 #include "scene_parser.hpp"
 #include "image.hpp"
 #include "camera.hpp"
 #include "group.hpp"
 #include "light.hpp"
+#include "utils.hpp"
 
 #include <string>
 
 using namespace std;
 
-// 反射方向计算
 Vector3f reflect(const Vector3f &incident, const Vector3f &normal) {
     return incident - 2 * Vector3f::dot(incident, normal) * normal;
 }
 
-// 折射方向计算 (斯涅尔定律)
-Vector3f refract(const Vector3f &incident, const Vector3f &normal, float refractiveIndex) {
-    float n1 = 1.0f; // 空气折射率
-    float n2 = refractiveIndex;
-    Vector3f N = normal;
-    
-    float cosI = -Vector3f::dot(N, incident);
-    if (cosI < 0) { // 从内部射出
-        cosI = -cosI;
-        N = -N;
-        std::swap(n1, n2);
+Vector3f refract(const Vector3f &incident, const Vector3f &normal, float ni_over_nt, bool &refracted) {
+    Vector3f unit_incident = incident.normalized();
+    float dt = Vector3f::dot(unit_incident, normal);
+    float discriminant = 1.0f - ni_over_nt * ni_over_nt * (1 - dt * dt);
+    if (discriminant > 0) {
+        refracted = true;
+        return ni_over_nt * (unit_incident - normal * dt) - normal * sqrtf(discriminant);
+    } else {
+        refracted = false;
+        return Vector3f();
     }
-    
-    float eta = n1 / n2;
-    float k = 1 - eta * eta * (1 - cosI * cosI);
-    
-    if (k < 0) { // 全反射
-        return Vector3f::ZERO;
-    }
-    
-    return eta * incident + (eta * cosI - sqrtf(k)) * N;
 }
 
-Vector3f traceRay(const Ray &ray, const SceneParser &scene, int depth, float tmin) {
-    if (depth > 5) return scene.getBackgroundColor(); // 限制递归深度
-    
+Vector3f cosineSampleHemisphere(const Vector3f &normal) {
+    float r1 = 2 * M_PI * randf();
+    float r2 = randf(), r2s = sqrt(r2);
+    Vector3f u = Vector3f::cross((fabs(normal.x()) > 0.1f ? Vector3f(0, 1, 0) : Vector3f(1, 0, 0)), normal).normalized();
+    Vector3f v = Vector3f::cross(normal, u);
+    return (u * cos(r1) * r2s + v * sin(r1) * r2s + normal * sqrt(1 - r2)).normalized();
+}
+
+Vector3f traceRay(const Ray &ray, const SceneParser &scene, int depth) {
+    if (depth > 20) return Vector3f();
+
     Group *baseGroup = scene.getGroup();
     Hit hit;
-    bool isIntersect = baseGroup->intersect(ray, hit, tmin);
-    
-    if (isIntersect) {
-        Material *material = hit.getMaterial();
-        Vector3f hitPoint = ray.pointAtParameter(hit.getT());
-        Vector3f normal = hit.getNormal();
+    if (!baseGroup->intersect(ray, hit, 1e-4f))
+        return scene.getBackgroundColor();
 
-        Vector3f finalColor = material->getAmbientColor() * material->getDiffuseColor();
-        
-        // 处理反射材质
-        if (material->isReflective()) {
-            Vector3f reflectedDir = reflect(ray.getDirection(), normal);
-            Ray reflectedRay(hitPoint + reflectedDir * 1e-4, reflectedDir);
-            return traceRay(reflectedRay, scene, depth + 1, tmin) * material->getDiffuseColor();
-        }
-        
-        // 处理折射材质
-        if (material->isRefractive()) {
-            Vector3f refractedDir = refract(ray.getDirection(), normal, 
-                                           material->getRefractiveIndex());
-            if (refractedDir.length() > 0) { // 不是全反射
-                Ray refractedRay(hitPoint + refractedDir * 1e-4, refractedDir);
-                return traceRay(refractedRay, scene, depth + 1, tmin) * material->getDiffuseColor();
-            } else { // 全反射情况
-                Vector3f reflectedDir = reflect(ray.getDirection(), normal);
-                Ray reflectedRay(hitPoint + reflectedDir * 1e-4, reflectedDir);
-                return traceRay(reflectedRay, scene, depth + 1, tmin) * material->getDiffuseColor();
-            }
-        }
-        
-        // 漫反射材质 - 添加阴影检测
-        for (int li = 0; li < scene.getNumLights(); ++li) {
-            Light* light = scene.getLight(li);
-            Vector3f L, lightColor;
-            light->getIllumination(hitPoint, L, lightColor);
-            
-            // 阴影检测 - 发射Shadow Ray
-            Ray shadowRay(hitPoint + L * 1e-4, L); // 小偏移防止自相交
-            Hit shadowHit;
-            bool inShadow = baseGroup->intersect(shadowRay, shadowHit, tmin);
-            
-            if (!inShadow || shadowHit.getT() > (light->getPosition() - hitPoint).length()) {
-                finalColor += material->Shade(ray, hit, L, lightColor);
-            }
-        }
-        return finalColor;
+    Vector3f hitPoint = ray.pointAtParameter(hit.getT());
+    Vector3f normal = hit.getNormal().normalized();
+    Vector3f wo = -ray.getDirection().normalized();
+    Material *material = hit.getMaterial();
+
+    Vector3f emission = material->getEmissionColor();
+    Vector3f color = material->getDiffuseColor();
+    auto type = material->getType(); // DIFF / SPEC / REFR
+
+    // Russian Roulette
+    float p = std::max(color.x(), std::max(color.y(), color.z()));
+    if (depth > 5) {
+        if (randf() > p) return emission;
+        color = color/p;
     }
-    return scene.getBackgroundColor();
+
+    if (type == DIFF) {
+        Vector3f dir = cosineSampleHemisphere(normal); // 随机采样半球方向
+        Ray newRay(hitPoint + dir * 1e-4f, dir);
+        return emission + color * traceRay(newRay, scene, depth + 1);
+    }else if (type == SPEC) {
+        Vector3f dir = reflect(ray.getDirection(), normal).normalized();
+        Ray newRay(hitPoint + dir * 1e-4f, dir);
+        return emission + color * traceRay(newRay, scene, depth + 1);
+    } else if (type == REFR) {
+        bool into = Vector3f::dot(normal, ray.getDirection()) < 0;
+        Vector3f n = into ? normal : -normal;
+        float eta = into ? (1.0f / material->getRefractiveIndex()) : material->getRefractiveIndex();
+
+        bool refracted = false;
+        Vector3f refr_dir = refract(ray.getDirection(), n, eta, refracted).normalized();
+
+        Vector3f refl_dir = reflect(ray.getDirection(), normal).normalized();
+        Ray reflRay(hitPoint + refl_dir * 1e-4f, refl_dir);
+
+        if (!refracted) {
+            return emission + color * traceRay(reflRay, scene, depth + 1); // 全反射
+        }
+
+        Ray refrRay(hitPoint + refr_dir * 1e-4f, refr_dir);
+
+        // Schlick's approximation
+        float R0 = powf((1 - eta) / (1 + eta), 2);
+        float c = 1 - (into ? -Vector3f::dot(ray.getDirection(), normal) : Vector3f::dot(refr_dir, normal));
+        float Re = R0 + (1 - R0) * powf(c, 5);
+        float Tr = 1 - Re;
+
+        float prob = 0.25 + 0.5 * Re;
+        if (depth > 2) {
+            if (randf() < prob)
+                return emission + color * traceRay(reflRay, scene, depth + 1) * Re / prob;
+            else
+                return emission + color * traceRay(refrRay, scene, depth + 1) * Tr / (1 - prob);
+        } else {
+            return emission + color * (traceRay(reflRay, scene, depth + 1) * Re +
+                                       traceRay(refrRay, scene, depth + 1) * Tr);
+        }
+    }else if (type == METAL) {
+        Vector3f perfect_reflect = reflect(ray.getDirection(), normal).normalized();
+
+        // 粗糙反射（添加一点扰动）
+        float fuzz = 0.8f; // 材质参数,可修改
+        Vector3f perturbed = (perfect_reflect + fuzz * cosineSampleHemisphere(normal)).normalized();
+
+        Ray newRay(hitPoint + perturbed * 1e-4f, perturbed);
+        return emission + color * traceRay(newRay, scene, depth + 1);
+    }
+
+    return Vector3f(); // fallback
+}
+
+float clamp(float x) {
+    return x < 0 ? 0 : (x > 1 ? 1 : x);
 }
 
 int main(int argc, char *argv[]) {
@@ -118,13 +145,24 @@ int main(int argc, char *argv[]) {
     // pixel in your output image.
     SceneParser sceneParser(inputFile.c_str());
     Camera* camera = sceneParser.getCamera();
+    const int spp = 128;
 
     Image outImg(camera->getWidth(), camera->getHeight());
     // 循环屏幕空间的像素
     for (int x = 0; x < camera->getWidth(); ++x) {
         for (int y = 0; y < camera->getHeight(); ++y) {
-            Ray camRay = camera->generateRay(Vector2f(x, y));
-            Vector3f color = traceRay(camRay, sceneParser, 0, 0.001f);
+            Vector3f color(0, 0, 0);
+            for (int s = 0; s < spp; ++s) {
+                float dx = randf(), dy = randf();
+                Ray camRay = camera->generateRay(Vector2f(x + dx, y + dy));
+                color += traceRay(camRay, sceneParser, 0);
+            }
+            color = color/spp;
+            color = Vector3f(
+                powf(clamp(color.x()), 1.0f / 2.2f),
+                powf(clamp(color.y()), 1.0f / 2.2f),
+                powf(clamp(color.z()), 1.0f / 2.2f)
+            );
             outImg.SetPixel(x, y, color);
         }
     }
