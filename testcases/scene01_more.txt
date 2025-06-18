@@ -9,7 +9,13 @@ PerspectiveCamera {
 }
 
 Lights {
-    numLights 0
+    numLights 1
+    AreaLight {
+        position -1.0 1.99 -1.0
+        uvec 2.0 0 0
+        vvec 0 0 2.0
+        color 15.0 15.0 15.0
+    }
 }
 
 Background {
@@ -31,11 +37,12 @@ Materials {
     Material { diffuseColor 0 0 0 }
     Material { diffuseColor 0.25 0.25 0.75 }
     Material { diffuseColor 0.75 0.75 0.25 }
-    Material { diffuseColor 0.75 0.25 0.75 }
+    Material { diffuseColor 0.75 0.25 0.75 
+    emissionColor 0.75 0.25 0.75}
 }
 
 Group {
-    numObjects 8
+    numObjects 7
     MaterialIndex 0
     Sphere {
 	center -1 -1 -1 
@@ -44,11 +51,6 @@ Group {
     MaterialIndex 1
     Sphere {
 	center 1 -1 1 
-        radius 0.75
-    }
-    MaterialIndex 2
-    Sphere {
-	center 0 2 0 
         radius 0.75
     }
     MaterialIndex 3

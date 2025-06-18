@@ -179,7 +179,7 @@ int main(int argc, char *argv[]) {
     // pixel in your output image.
     SceneParser sceneParser(inputFile.c_str());
     Camera* camera = sceneParser.getCamera();
-    const int spp = 128;
+    const int spp = 32;
 
     Image outImg(camera->getWidth(), camera->getHeight());
     // 循环屏幕空间的像素
