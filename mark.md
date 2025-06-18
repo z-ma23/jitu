@@ -1,3 +1,7 @@
 scene01是基础要求1
-scene01_more是基础要求2，在顶上有一个光源，顶面发光
+scene01_more_compare是基础要求2对比，在顶上有一个光源，顶面发光
+scene01_more与scene01_noNEE是NEE对比（128）
 scene02增加光滑面材质球
+scene03_nof与scene03是对比有无菲涅尔系数
+scene04是水和玻璃,右边玻璃
+scene03与scene04对比，可以看0°
