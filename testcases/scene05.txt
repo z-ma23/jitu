@@ -26,11 +26,9 @@ Materials {
     numMaterials 8
     Material { 
 	  diffuseColor 0.8 0.8 0.8 
-	  type SPEC
 	}
     Material { diffuseColor 0.8 0.8 0.8
-    type REFR
-    refractiveIndex 1.5}
+    emissionColor 10 10 10}
     Material { 
       diffuseColor 1 1 0.5 
       type METAL
@@ -44,36 +42,21 @@ Materials {
 }
 
 Group {
-    numObjects 6
-    MaterialIndex 2
+    numObjects 3
+    MaterialIndex 0
     Sphere {
 	center 0 -1 0 
         radius 1
+    }
+    MaterialIndex 1
+    Sphere {
+	center 0 2 0 
+        radius 0.5
     }
     MaterialIndex 3
     Plane {
 	normal 0 1 0
         offset -2
-    }
-    MaterialIndex 5
-    Plane {
-	normal 1 0 0
-        offset -2
-    }
-    MaterialIndex 4
-    Plane {
-	normal -1 0 0
-        offset -2
-    }
-    MaterialIndex 6
-    Plane {
-	normal 0 0 1
-        offset -5
-    }
-    MaterialIndex 7
-    Plane {
-	normal 0 1 0
-        offset 2
     }
 }
 
